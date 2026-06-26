@@ -1,0 +1,338 @@
+/* ============================================================
+   AcademiSys — Design System v2
+   Paleta: Warm Earth / Brown — con variedad visual
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap');
+
+/* ── Variables ─────────────────────────────────────────────── */
+:root {
+    --br-900:  #272E22;
+    --br-800:  #363D30;
+    --br-700:  #4A5240;
+    --br-600:  #65715A;
+    --br-500:  #849174;
+    --br-400:  #A3B090;
+    --br-300:  #C4CFBA;
+    --br-200:  #DDE5D8;
+    --br-100:  #ECF0E8;
+    --br-50:   #F3F5F0;
+
+    --amber:   #EF8C00;
+    --amber-lt:#FFF8EC;
+    --green:   #4A7C4E;
+    --green-lt:#EEF5EE;
+    --teal:    #00796B;
+    --teal-lt: #E0F2F0;
+    --rose:    #BF360C;
+    --rose-lt: #FBE9E7;
+    --indigo:  #3949AB;
+    --indigo-lt:#EEF0FC;
+
+    --shadow-sm: 0 1px 4px rgba(62,39,35,.07);
+    --shadow-md: 0 4px 16px rgba(62,39,35,.13);
+    --shadow-lg: 0 8px 32px rgba(62,39,35,.18);
+
+    --radius:    10px;
+    --radius-sm: 6px;
+}
+
+/* ── Base ──────────────────────────────────────────────────── */
+body {
+    background: var(--br-50);
+    font-family: 'Nunito', sans-serif;
+    font-size: .93rem;
+    color: #2D1B17;
+}
+
+h1,h2,h3,h4,h5,h6 { font-family:'Nunito',sans-serif; }
+
+/* ── Navbar / Sidebar ──────────────────────────────────────── */
+.navbar-brand {
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+}
+#sidebar { border-right: 1px solid rgba(255,255,255,.06); }
+#sidebar .nav-link { border-left: 3px solid transparent; transition: all .15s; }
+#sidebar .nav-link:hover { color:#fff; background:rgba(255,255,255,.1); }
+#sidebar .nav-link.active {
+    background: rgba(255,255,255,.16) !important;
+    color: #fff !important;
+    font-weight: 600;
+    border-left: 3px solid rgba(255,255,255,.55);
+}
+
+/* ── Cards: base ───────────────────────────────────────────── */
+.card {
+    border: 1px solid rgba(39,46,34,.07) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(39,46,34,.10), 0 8px 24px rgba(39,46,34,.10);
+    transition: box-shadow .22s ease, transform .22s ease;
+    background: #fff;
+}
+.card:hover {
+    box-shadow: 0 6px 16px rgba(39,46,34,.16), 0 16px 40px rgba(39,46,34,.13) !important;
+    transform: translateY(-3px);
+}
+.card-header {
+    background: var(--br-800) !important;
+    border-bottom: none !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-family: 'Nunito', sans-serif;
+    font-size: .97rem;
+    font-weight: 700;
+    color: rgba(255,255,255,.92);
+    padding: 1rem 1.25rem;
+    letter-spacing: .1px;
+}
+.card-header .btn-sm,
+.card-header a { color: rgba(255,255,255,.75); }
+.card-header .btn-sm:hover,
+.card-header a:hover { color: #fff; }
+.card-header .text-muted { color: rgba(255,255,255,.45) !important; }
+.card-body { padding: 1.25rem; }
+/* Override Bootstrap utility shadows so the custom card shadow always wins */
+.card.shadow-sm, .card.shadow, .card.shadow-lg {
+    box-shadow: 0 2px 6px rgba(39,46,34,.10), 0 8px 24px rgba(39,46,34,.10) !important;
+}
+.card.shadow-sm:hover, .card.shadow:hover, .card.shadow-lg:hover {
+    box-shadow: 0 6px 16px rgba(39,46,34,.16), 0 16px 40px rgba(39,46,34,.13) !important;
+}
+
+/* ── Cards de estadísticas (stat cards) ────────────────────── */
+.card.stat-amber,
+.card.stat-green,
+.card.stat-teal,
+.card.stat-rose,
+.card.stat-indigo {
+    background: var(--br-800) !important;
+    border: none !important;
+}
+.card.stat-amber  { border-left: 5px solid var(--amber)  !important; }
+.card.stat-green  { border-left: 5px solid var(--green)  !important; }
+.card.stat-teal   { border-left: 5px solid var(--teal)   !important; }
+.card.stat-rose   { border-left: 5px solid var(--rose)   !important; }
+.card.stat-indigo { border-left: 5px solid var(--indigo) !important; }
+
+.stat-num {
+    font-family: 'Nunito', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #fff;
+}
+.card.stat-amber .text-muted,
+.card.stat-green .text-muted,
+.card.stat-teal  .text-muted,
+.card.stat-rose  .text-muted,
+.card.stat-indigo .text-muted {
+    color: rgba(255,255,255,.5) !important;
+    font-size: .72rem !important;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+.stat-icon {
+    font-size: 2.6rem;
+    opacity: .2;
+    margin-top: .6rem;
+    display: block;
+    color: #fff !important;
+}
+
+/* ── Tablas ─────────────────────────────────────────────────── */
+/* Card-row layout: each data row floats as its own card */
+.table {
+    border-collapse: separate !important;
+    border-spacing: 0 4px !important;
+    font-size: .9rem;
+    margin: .5rem 0 !important;
+}
+/* Side breathing room inside card-body p-0 */
+.card-body > .table,
+.card-body > .table-responsive .table {
+    margin-left: .6rem !important;
+    margin-right: .6rem !important;
+    width: calc(100% - 1.2rem) !important;
+}
+.table > :not(caption) > * > * {
+    padding: .82rem 1.1rem;
+    vertical-align: middle;
+    border: none !important;
+}
+/* All body cells white by default */
+.table > tbody > * > * { background-color: #fff; }
+
+/* Header — transparent bg, moss uppercase labels */
+.table-dark { background: transparent !important; }
+.table > thead.table-dark > tr > th,
+.table > thead.table-light > tr > th,
+.table > thead > tr > th {
+    background: transparent !important;
+    color: var(--br-500) !important;
+    font-family: 'Nunito', sans-serif !important;
+    font-size: .69rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .9px;
+    border: none !important;
+    padding-bottom: .6rem;
+}
+
+/* Row card: shadow + rounded ends */
+.table > tbody > tr {
+    box-shadow: 0 1px 3px rgba(39,46,34,.08), 0 2px 8px rgba(39,46,34,.05);
+    transition: box-shadow .18s ease, transform .18s ease;
+}
+.table > tbody > tr > td:first-child { border-radius: 8px 0 0 8px !important; }
+.table > tbody > tr > td:last-child  { border-radius: 0 8px 8px 0 !important; }
+
+/* No outer table border */
+.table-bordered { border: none !important; }
+
+/* Alternating row tint */
+.table-striped > tbody > tr:nth-of-type(even) > * { background-color: #F5F7F3 !important; }
+.table-striped > tbody > tr:nth-of-type(odd)  > * { background-color: #fff !important; }
+
+/* Hover: lift + left moss accent on first cell */
+.table-hover > tbody > tr:hover {
+    box-shadow: 0 4px 16px rgba(39,46,34,.14), 0 2px 6px rgba(39,46,34,.08) !important;
+    transform: translateY(-1px);
+}
+.table-hover > tbody > tr:hover > * { background-color: rgba(132,145,116,.13) !important; }
+.table-hover > tbody > tr:hover > td:first-child { box-shadow: inset 3px 0 0 var(--br-500); }
+
+/* ── Formularios ────────────────────────────────────────────── */
+.form-label { font-weight: 500; color: var(--br-700); font-size: .875rem; }
+.form-control, .form-select {
+    border-color: var(--br-200);
+    border-radius: 8px;
+    background: #fff;
+    padding: .45rem .85rem;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--br-500);
+    box-shadow: 0 0 0 3px rgba(132,145,116,.22);
+}
+.form-control-sm, .form-select-sm { border-radius: 6px; }
+
+/* ── Botones ─────────────────────────────────────────────────── */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: .875rem;
+    padding: .45rem .95rem;
+    letter-spacing: .15px;
+    transition: background .15s ease, border-color .15s ease,
+                box-shadow .15s ease, transform .1s ease;
+}
+.btn:active { transform: scale(.97) !important; box-shadow: none !important; }
+.btn-sm { border-radius: 6px; font-size: .8rem; padding: .28rem .65rem; }
+.btn-lg { border-radius: 10px; padding: .62rem 1.35rem; }
+
+.btn-primary {
+    background: var(--br-600);
+    border-color: var(--br-600);
+    color: #fff;
+}
+.btn-primary:hover {
+    background: var(--br-700);
+    border-color: var(--br-700);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(74,82,64,.35);
+}
+.btn-primary:active { background: var(--br-800) !important; border-color: var(--br-800) !important; }
+.btn-primary:focus-visible { box-shadow: 0 0 0 3px rgba(101,113,90,.4); }
+
+.btn-outline-primary {
+    color: var(--br-600);
+    border-color: var(--br-600);
+    background: transparent;
+}
+.btn-outline-primary:hover {
+    background: var(--br-600);
+    border-color: var(--br-600);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(74,82,64,.25);
+}
+
+.btn-outline-secondary {
+    color: var(--br-600);
+    border-color: var(--br-200);
+}
+.btn-outline-secondary:hover {
+    background: var(--br-50);
+    border-color: var(--br-300);
+    color: var(--br-800);
+}
+
+.btn-success {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+}
+.btn-success:hover {
+    background: #3d6641;
+    border-color: #3d6641;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(74,124,78,.32);
+}
+
+.btn-danger {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: #fff;
+}
+.btn-danger:hover {
+    background: #a32e0a;
+    border-color: #a32e0a;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(191,54,12,.32);
+}
+
+.btn-outline-danger {
+    color: var(--rose);
+    border-color: var(--rose);
+}
+.btn-outline-danger:hover {
+    background: var(--rose);
+    border-color: var(--rose);
+    color: #fff;
+}
+
+.btn-warning {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #fff;
+}
+.btn-warning:hover {
+    background: #cf7a00;
+    border-color: #cf7a00;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(239,140,0,.30);
+}
+
+/* ── Badges ─────────────────────────────────────────────────── */
+.badge { border-radius:20px; font-weight:500; letter-spacing:.2px; }
+.badge.bg-primary, .bg-primary { background-color: var(--br-600) !important; }
+.text-primary { color: var(--br-600) !important; }
+
+/* ── Alerts ─────────────────────────────────────────────────── */
+.alert { border-radius: 8px; border-left-width: 4px; }
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background: var(--br-50); }
+::-webkit-scrollbar-thumb { background: var(--br-300); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--br-500); }
+
+/* ── Misc ────────────────────────────────────────────────────── */
+.table-responsive-none { overflow: visible; }
+.badge-nota-aprobado { background: var(--green); }
+.badge-nota-regular  { background: var(--amber); }
+.badge-nota-reprobado{ background: var(--rose);  }
+.btn-academisys { background:var(--br-600); border-color:var(--br-600); color:#fff; }
+.btn-academisys:hover { background:var(--br-700); border-color:var(--br-700); color:#fff; }
+.display-4,.display-5 { font-family:'Nunito',sans-serif; }
