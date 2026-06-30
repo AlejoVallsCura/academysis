@@ -9,6 +9,7 @@
                 <tr>
                     <th>Código</th>
                     <th>Materia</th>
+                    <th class="text-center">Año</th>
                     <th>Requiere aprobar previamente</th>
                 </tr>
             </thead>
@@ -17,6 +18,9 @@
                 <tr>
                     <td><code><?= htmlspecialchars($m['CodMateria']) ?></code></td>
                     <td class="fw-semibold"><?= htmlspecialchars($m['NomMateria']) ?></td>
+                    <td class="text-center">
+                        <?= $m['Anio'] ? '<span class="badge bg-secondary">' . (int)$m['Anio'] . '°</span>' : '<span class="text-muted">—</span>' ?>
+                    </td>
                     <td>
                         <?php if (empty($m['correlativas'])): ?>
                             <span class="text-muted fst-italic">Sin correlativas</span>

@@ -5,6 +5,13 @@
 
 define('SESSION_TIMEOUT', 30 * 60); // 30 minutos de inactividad
 
+/*
+ * Modo desarrollo. Cuando está en true, habilita los accesos rápidos del login
+ * (botones para entrar como alumno/docente/admin sin contraseña), pensados solo
+ * para agilizar las pruebas. PONER EN false ANTES DE PASAR A PRODUCCIÓN.
+ */
+define('DEV_MODE', true);
+
 /** Redirige al login y detiene la ejecución si no hay sesión activa o expiró. */
 function requiereLogin(): void {
     if (!isset($_SESSION['usuario'])) {

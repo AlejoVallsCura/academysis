@@ -4,7 +4,7 @@
         <input type="hidden" name="controller" value="alumno">
         <input type="hidden" name="action" value="misNotas">
         <label class="text-muted small me-1 mb-0">Año:</label>
-        <select name="anio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <select name="anio" class="form-select form-select-sm" style="width:auto">
             <option value="0" <?= $anio === 0 ? 'selected' : '' ?>>Todos</option>
             <?php foreach ($anios as $a): ?>
                 <option value="<?= (int)$a['AnioLectivo'] ?>" <?= $anio === (int)$a['AnioLectivo'] ? 'selected' : '' ?>>
@@ -12,6 +12,7 @@
                 </option>
             <?php endforeach; ?>
         </select>
+        <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
     </form>
 </div>
 
@@ -21,13 +22,14 @@
     <div class="card-body p-0">
         <table class="table table-bordered mb-0">
             <thead class="table-light">
-                <tr><th>Materia</th><th class="text-center">Evaluaciones</th><th class="text-center">Promedio</th></tr>
+                <tr><th>Materia</th><th class="text-center">Año</th><th class="text-center">Evaluaciones</th><th class="text-center">Promedio</th></tr>
             </thead>
             <tbody>
             <?php foreach ($promedios as $p): ?>
                 <?php $pr = (float)$p['promedio']; $color = $pr >= 7 ? 'success' : ($pr >= 4 ? 'warning' : 'danger'); ?>
                 <tr>
                     <td><?= htmlspecialchars($p['NomMateria']) ?></td>
+                    <td class="text-center"><span class="badge bg-secondary" title="Año en el plan"><?= (int)$p['AnioMateria'] ?>°</span></td>
                     <td class="text-center"><?= (int)$p['cantidad'] ?></td>
                     <td class="text-center"><span class="badge bg-<?= $color ?> fs-6"><?= number_format($pr,2) ?></span></td>
                 </tr>
@@ -45,7 +47,8 @@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-primary bg-opacity-10 fw-semibold">
             <?= htmlspecialchars($grupo['NomMateria']) ?>
-            <small class="text-muted fw-normal ms-2"><?= htmlspecialchars($grupo['AnioLectivo']) ?></small>
+            <span class="badge bg-secondary ms-1" title="Año en el plan"><?= (int)$grupo['AnioMateria'] ?>°</span>
+            <small class="text-muted fw-normal ms-2">Lectivo <?= htmlspecialchars($grupo['AnioLectivo']) ?></small>
         </div>
         <div class="card-body p-0">
             <table class="table table-striped table-hover table-bordered mb-0">

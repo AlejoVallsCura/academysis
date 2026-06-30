@@ -21,7 +21,7 @@ class EvaluacionModel extends Model {
      *  Si $anio > 0 filtra solo ese año lectivo. */
     public function getNotasByAlumno(int $dni, int $anio = 0): array {
         $stmt = $this->db->prepare("
-            SELECT m.NomMateria, m.CodMateria,
+            SELECT m.NomMateria, m.CodMateria, m.Anio AS AnioMateria,
                    e.IDEvaluacion, e.Tipo, e.Nota, e.Fecha, e.Instancia,
                    c.AnioLectivo
               FROM Evaluacion e
@@ -40,6 +40,7 @@ class EvaluacionModel extends Model {
             if (!isset($grouped[$key])) {
                 $grouped[$key] = [
                     'NomMateria'   => $row['NomMateria'],
+                    'AnioMateria'  => $row['AnioMateria'],
                     'AnioLectivo'  => $row['AnioLectivo'],
                     'evaluaciones' => [],
                 ];
@@ -53,7 +54,7 @@ class EvaluacionModel extends Model {
      *  Si $anio > 0 filtra solo ese año lectivo. */
     public function getPromedioByMateria(int $dni, int $anio = 0): array {
         $stmt = $this->db->prepare("
-            SELECT m.NomMateria,
+            SELECT m.NomMateria, m.Anio AS AnioMateria,
                    ROUND(AVG(e.Nota), 2) AS promedio,
                    COUNT(e.IDEvaluacion)  AS cantidad
               FROM Evaluacion e
@@ -62,8 +63,8 @@ class EvaluacionModel extends Model {
               JOIN Materia m     ON m.CodMateria      = c.CodMateria
              WHERE i.DNI = :dni
                AND (:anio = 0 OR c.AnioLectivo = :anio2)
-             GROUP BY m.CodMateria, m.NomMateria
-             ORDER BY m.NomMateria
+             GROUP BY m.CodMateria, m.NomMateria, m.Anio
+             ORDER BY m.Anio, m.NomMateria
         ");
         $stmt->execute([':dni' => $dni, ':anio' => $anio, ':anio2' => $anio]);
         return $stmt->fetchAll();
@@ -111,13 +112,6 @@ class EvaluacionModel extends Model {
         ");
         $stmt->execute([':idCurso' => $idCurso, ':dni' => $dni]);
         return $stmt->fetchAll();
-    }
-
-    /** Devuelve una evaluación por su ID, o [] si no existe. */
-    public function getEvaluacionById(int $id): array {
-        $stmt = $this->db->prepare("SELECT * FROM Evaluacion WHERE IDEvaluacion = :id");
-        $stmt->execute([':id' => $id]);
-        return $stmt->fetch() ?: [];
     }
 
     /** Actualiza los datos de una evaluación existente y devuelve true si fue exitosa. */

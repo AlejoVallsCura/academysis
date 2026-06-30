@@ -1,17 +1,26 @@
 <?php
 $fCarrera  = $_GET['f_carrera'] ?? '';
-$filtrados = array_filter($cursos, function($c) use ($fCarrera) {
-    if ($fCarrera && $c['CodCarrera'] !== $fCarrera) return false;
+$fAnio     = $_GET['f_anio']    ?? '';
+/* Aplica ambos filtros: por carrera y por año lectivo */
+$filtrados = array_filter($cursos, function($c) use ($fCarrera, $fAnio) {
+    if ($fCarrera && $c['CodCarrera'] !== $fCarrera)          return false;
+    if ($fAnio    && (string)$c['AnioLectivo'] !== $fAnio)    return false;
     return true;
 });
 
+/* Construye el mapa código → nombre de carrera para el filtro del select */
 $carreras = [];
+/* Junta los años lectivos presentes para el select de año */
+$anios = [];
 foreach ($cursos as $c) {
     if (!empty($c['CodCarrera']) && !isset($carreras[$c['CodCarrera']])) {
-        $carreras[$c['CodCarrera']] = true;
+        /* Guardamos el nombre completo para mostrarlo en el select */
+        $carreras[$c['CodCarrera']] = $c['NomCarrera'] ?? $c['CodCarrera'];
     }
+    $anios[(int)$c['AnioLectivo']] = true;
 }
 ksort($carreras);
+krsort($anios);  // años más recientes primero
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -24,15 +33,22 @@ ksort($carreras);
 <form method="get" action="index.php" class="d-flex gap-2 mb-3">
     <input type="hidden" name="controller" value="admin">
     <input type="hidden" name="action" value="cursos">
-    <select name="f_carrera" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+    <select name="f_carrera" class="form-select form-select-sm" style="width:auto">
         <option value="">Todas las carreras</option>
-        <?php foreach (array_keys($carreras) as $cod): ?>
+        <?php foreach ($carreras as $cod => $nom): ?>
         <option value="<?= htmlspecialchars($cod) ?>" <?= $fCarrera === $cod ? 'selected' : '' ?>>
-            <?= htmlspecialchars($cod) ?>
+            <?= htmlspecialchars($nom) ?> (<?= htmlspecialchars($cod) ?>)
         </option>
         <?php endforeach; ?>
     </select>
-    <?php if ($fCarrera): ?>
+    <select name="f_anio" class="form-select form-select-sm" style="width:auto">
+        <option value="">Todos los años</option>
+        <?php foreach (array_keys($anios) as $a): ?>
+        <option value="<?= $a ?>" <?= $fAnio === (string)$a ? 'selected' : '' ?>><?= $a ?></option>
+        <?php endforeach; ?>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+    <?php if ($fCarrera || $fAnio): ?>
     <a href="index.php?controller=admin&action=cursos" class="btn btn-outline-secondary btn-sm">Limpiar</a>
     <?php endif; ?>
 </form>

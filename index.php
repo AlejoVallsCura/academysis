@@ -18,6 +18,9 @@ require_once BASE_PATH . '/config/auth.php';
 require_once BASE_PATH . '/core/Model.php';
 require_once BASE_PATH . '/core/Controller.php';
 
+// Helper de auditoría (registro de acciones en la BBDD).
+require_once BASE_PATH . '/core/Auditoria.php';
+
 // Incluye automáticamente todos los modelos del directorio /models/.
 foreach (glob(BASE_PATH . '/models/*.php') as $file) {
     require_once $file;

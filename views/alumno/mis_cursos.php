@@ -11,18 +11,27 @@
             <thead class="table-dark">
                 <tr>
                     <th>Materia</th>
-                    <th>Año</th>
+                    <th>Año lectivo</th>
                     <th>Horarios</th>
                     <th>Aula</th>
                     <th>Docente</th>
                     <th>Estado</th>
+                    <th class="text-center">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($cursos as $c): ?>
-                <tr>
-                    <td><?= htmlspecialchars($c['NomMateria']) ?><br>
-                        <small class="text-muted"><?= htmlspecialchars($c['CodMateria']) ?></small></td>
+            <?php foreach ($cursos as $c):
+                /* Inscripción superada: intento viejo de una materia que después recursó/aprobó.
+                 * Se atenúa la fila para que se entienda que es historial, no el estado vigente. */
+                $superada = !empty($c['Superada']);
+            ?>
+                <tr class="<?= $superada ? 'opacity-50' : '' ?>">
+                    <td>
+                        <?= htmlspecialchars($c['NomMateria']) ?>
+                        <!-- Año de la materia en el plan de la carrera -->
+                        <span class="badge bg-secondary ms-1" title="Año en el plan de estudios"><?= (int)$c['AnioMateria'] ?>°</span>
+                        <br><small class="text-muted"><?= htmlspecialchars($c['CodMateria']) ?></small>
+                    </td>
                     <td><?= htmlspecialchars($c['AnioLectivo']) ?></td>
                     <td><small><?= htmlspecialchars($c['Horarios'] ?? '—') ?></small></td>
                     <td><?= htmlspecialchars($c['Aula']) ?><br>
@@ -40,6 +49,25 @@
                         $b = $badges[$c['EstadoInscripcion']] ?? 'secondary';
                         ?>
                         <span class="badge bg-<?= $b ?>"><?= htmlspecialchars($c['EstadoInscripcion']) ?></span>
+                        <?php if ($superada): ?>
+                            <!-- Aclaración: este intento ya fue recursado en un año posterior -->
+                            <br><small class="text-muted fst-italic"><i class="bi bi-arrow-repeat me-1"></i>recursada después</small>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-center">
+                        <?php if ($c['EstadoInscripcion'] === 'Activo'): ?>
+                            <!-- Solo se puede dar de baja si el curso está Activo -->
+                            <form method="post" action="index.php?controller=alumno&action=darDeBaja"
+                                  onsubmit="return confirm('¿Confirmás que querés darte de baja de este curso?')">
+                                <input type="hidden" name="IDInscripcion" value="<?= (int)$c['IDInscripcion'] ?>">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-x-circle me-1"></i>Baja
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <!-- Estado no modificable desde el alumno -->
+                            <span class="text-muted small">—</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

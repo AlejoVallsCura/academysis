@@ -3,10 +3,12 @@
 /** Controlador del panel de administración. */
 class AdminController extends Controller {
 
-    private AdminModel $adminModel;
+    private AdminModel     $adminModel;
+    private AuditoriaModel $auditoriaModel;
 
     public function __construct() {
-        $this->adminModel = new AdminModel();
+        $this->adminModel     = new AdminModel();
+        $this->auditoriaModel = new AuditoriaModel();
     }
 
     /** Dashboard con resumen de entidades. */
@@ -37,11 +39,15 @@ class AdminController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
+                $codCarrera = trim($_POST['CodCarrera']);
                 $this->adminModel->saveCarrera([
-                    'CodCarrera' => trim($_POST['CodCarrera']),
+                    'CodCarrera' => $codCarrera,
                     'NomCarrera' => trim($_POST['NomCarrera']),
                     'DurAnios'   => (int)$_POST['DurAnios'],
                 ], $isNew);
+                /* Auditoría: alta o modificación de carrera según corresponda */
+                Auditoria::registrar($isNew ? Auditoria::ALTA : Auditoria::MODIFICACION,
+                    'Carrera', ($isNew ? 'Creó' : 'Editó') . " la carrera {$codCarrera}");
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Carrera guardada correctamente.'];
                 $this->redirect('index.php?controller=admin&action=carreras');
             } catch (PDOException $e) {
@@ -80,12 +86,18 @@ class AdminController extends Controller {
                 $error = 'Debés seleccionar una carrera y un año de cursada.';
             } else {
                 try {
+                    $codMateria = trim($_POST['CodMateria']);
                     $this->adminModel->saveMateria([
-                        'CodMateria' => trim($_POST['CodMateria']),
-                        'NomMateria' => trim($_POST['NomMateria']),
-                        'CodCarrera' => $codCarrera,
-                        'Anio'       => $anio,
+                        'CodMateria'  => $codMateria,
+                        'NomMateria'  => trim($_POST['NomMateria']),
+                        'CodCarrera'  => $codCarrera,
+                        'Anio'        => $anio,
+                        /* Contenidos mínimos: texto libre, puede estar vacío */
+                        'ContMinimos' => trim($_POST['ContMinimos'] ?? ''),
                     ], $isNew);
+                    /* Auditoría: alta o modificación de materia */
+                    Auditoria::registrar($isNew ? Auditoria::ALTA : Auditoria::MODIFICACION,
+                        'Materia', ($isNew ? 'Creó' : 'Editó') . " la materia {$codMateria}");
                     $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Materia guardada correctamente.'];
                     $this->redirect('index.php?controller=admin&action=materias');
                 } catch (PDOException $e) {
@@ -102,7 +114,11 @@ class AdminController extends Controller {
     public function toggleMateria(): void {
         requierePermiso('gestionar_materias');
         $cod = $_POST['cod'] ?? '';
-        if ($cod) $this->adminModel->toggleMateriaActivo($cod);
+        if ($cod) {
+            $this->adminModel->toggleMateriaActivo($cod);
+            /* Auditoría: cambio de estado activo/inactivo de la materia */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Materia', "Cambió el estado de la materia {$cod}");
+        }
         $this->redirect('index.php?controller=admin&action=materias');
     }
 
@@ -139,6 +155,9 @@ class AdminController extends Controller {
                     'IDAula'      => (int)$_POST['IDAula'],
                 ], $isNew);
                 $this->adminModel->saveHorarios($idCurso, $_POST['horarios'] ?? []);
+                /* Auditoría: alta o modificación de curso */
+                Auditoria::registrar($isNew ? Auditoria::ALTA : Auditoria::MODIFICACION,
+                    'Curso', ($isNew ? 'Creó' : 'Editó') . " el curso #{$idCurso} ({$_POST['CodMateria']})");
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Curso guardado correctamente.'];
                 $this->redirect('index.php?controller=admin&action=cursos');
             } catch (PDOException $e) {
@@ -154,7 +173,11 @@ class AdminController extends Controller {
     public function toggleCurso(): void {
         requierePermiso('gestionar_cursos');
         $id = (int)($_POST['id'] ?? 0);
-        if ($id) $this->adminModel->toggleCursoActivo($id);
+        if ($id) {
+            $this->adminModel->toggleCursoActivo($id);
+            /* Auditoría: cambio de estado activo/inactivo del curso */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Curso', "Cambió el estado del curso #{$id}");
+        }
         $this->redirect('index.php?controller=admin&action=cursos');
     }
 
@@ -207,6 +230,9 @@ class AdminController extends Controller {
                     } else {
                         $this->adminModel->editarAlumno($data);
                     }
+                    /* Auditoría: alta o modificación de alumno */
+                    Auditoria::registrar($isNew ? Auditoria::ALTA : Auditoria::MODIFICACION,
+                        'Alumno', ($isNew ? 'Creó' : 'Editó') . " al alumno DNI {$data['DNI']} ({$data['Apellido']}, {$data['Nombre']})");
                     $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Alumno guardado correctamente.'];
                     $this->redirect('index.php?controller=admin&action=alumnos');
                 }
@@ -223,7 +249,11 @@ class AdminController extends Controller {
     public function toggleAlumno(): void {
         requierePermiso('gestionar_alumnos');
         $dni = (int)($_POST['dni'] ?? 0);
-        if ($dni) $this->adminModel->toggleAlumnoActivo($dni);
+        if ($dni) {
+            $this->adminModel->toggleAlumnoActivo($dni);
+            /* Auditoría: cambio de estado activo/inactivo del alumno */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Alumno', "Cambió el estado del alumno DNI {$dni}");
+        }
         $this->redirect('index.php?controller=admin&action=alumnos');
     }
 
@@ -265,6 +295,9 @@ class AdminController extends Controller {
                     $this->adminModel->editarDocente($data);
                 }
 
+                /* Auditoría: alta o modificación de docente */
+                Auditoria::registrar($isNew ? Auditoria::ALTA : Auditoria::MODIFICACION,
+                    'Docente', ($isNew ? 'Creó' : 'Editó') . " al docente {$data['Apellido']}, {$data['Nombre']} (DNI {$data['DNI']})");
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Docente guardado correctamente.'];
                 $this->redirect('index.php?controller=admin&action=docentes');
             } catch (PDOException $e) {
@@ -280,7 +313,11 @@ class AdminController extends Controller {
     public function toggleDocente(): void {
         requierePermiso('gestionar_docentes');
         $legajo = (int)($_POST['legajo'] ?? 0);
-        if ($legajo) $this->adminModel->toggleDocenteActivo($legajo);
+        if ($legajo) {
+            $this->adminModel->toggleDocenteActivo($legajo);
+            /* Auditoría: cambio de estado activo/inactivo del docente */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Docente', "Cambió el estado del docente legajo {$legajo}");
+        }
         $this->redirect('index.php?controller=admin&action=docentes');
     }
 
@@ -302,11 +339,14 @@ class AdminController extends Controller {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
+                $emailAdmin = trim($_POST['Email']);
                 $this->adminModel->crearAdmin([
                     'Nombre'   => trim($_POST['Nombre']),
-                    'Email'    => trim($_POST['Email']),
+                    'Email'    => $emailAdmin,
                     'Password' => $_POST['Password'],
                 ]);
+                /* Auditoría: alta de un nuevo administrador (acción sensible) */
+                Auditoria::registrar(Auditoria::ALTA, 'Administrador', "Creó al administrador {$emailAdmin}");
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Administrador creado correctamente.'];
                 $this->redirect('index.php?controller=admin&action=admins');
             } catch (PDOException $e) {
@@ -322,7 +362,115 @@ class AdminController extends Controller {
     public function toggleAdmin(): void {
         requierePermiso('gestionar_admins');
         $id = (int)($_POST['id'] ?? 0);
-        if ($id) $this->adminModel->toggleAdminActivo($id);
+        if ($id) {
+            $this->adminModel->toggleAdminActivo($id);
+            /* Auditoría: cambio de estado de un administrador (acción sensible) */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Administrador', "Cambió el estado del administrador #{$id}");
+        }
         $this->redirect('index.php?controller=admin&action=admins');
+    }
+
+    // ============================================================
+    //  CORRELATIVAS
+    // ============================================================
+
+    /**
+     * Lista todas las correlativas actuales y provee los datos para el formulario de alta.
+     * El formulario permite seleccionar la materia y la correlativa que la desbloquea.
+     */
+    public function correlativas(): void {
+        requierePermiso('gestionar_materias');
+
+        /* Las correlativas se gestionan por carrera. Selector con la carrera elegida;
+         * por defecto, la primera de la lista. */
+        $carreras   = $this->adminModel->getCarrerasList();
+        $carreraSel = trim($_GET['carrera'] ?? '');
+        if ($carreraSel === '' && !empty($carreras)) {
+            $carreraSel = $carreras[0]['CodCarrera'];
+        }
+
+        /* Lista de correlativas y materias acotadas a la carrera seleccionada */
+        $correlativas = $this->adminModel->getCorrelativasList($carreraSel);
+        $materias     = $this->adminModel->getMateriasList($carreraSel);
+
+        $this->render('admin/correlativas', compact('correlativas', 'materias', 'carreras', 'carreraSel'));
+    }
+
+    /** Agrega una correlativa nueva entre dos materias (siempre dentro de la misma carrera). */
+    public function agregarCorrelativa(): void {
+        requierePermiso('gestionar_materias');
+        /* La carrera viene del form para volver a la misma vista filtrada */
+        $carrera = trim($_POST['carrera'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $cod  = trim($_POST['CodMateria']     ?? '');
+            $corr = trim($_POST['CodCorrelativa'] ?? '');
+            if (!$cod || !$corr || $cod === $corr) {
+                $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'Selección inválida. No podés usar la misma materia.'];
+            } elseif (!$this->adminModel->mismaCarrera($cod, $corr)) {
+                /* Seguridad: una correlativa debe ser entre materias de la misma carrera */
+                $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'Ambas materias deben ser de la misma carrera.'];
+            } else {
+                $this->adminModel->agregarCorrelativa($cod, $corr);
+                Auditoria::registrar(Auditoria::ALTA, 'Correlativa', "Agregó: {$cod} requiere {$corr}");
+                $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Correlativa agregada correctamente.'];
+            }
+        }
+        /* Vuelve a la vista de la carrera con la que se estaba trabajando */
+        $this->redirect('index.php?controller=admin&action=correlativas&carrera=' . urlencode($carrera));
+    }
+
+    /** Elimina una correlativa específica entre dos materias. */
+    public function eliminarCorrelativa(): void {
+        requierePermiso('gestionar_materias');
+        $carrera = trim($_POST['carrera'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $cod  = trim($_POST['CodMateria']     ?? '');
+            $corr = trim($_POST['CodCorrelativa'] ?? '');
+            if ($cod && $corr) {
+                $this->adminModel->eliminarCorrelativa($cod, $corr);
+                Auditoria::registrar(Auditoria::BAJA, 'Correlativa', "Eliminó: {$cod} ya no requiere {$corr}");
+                $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Correlativa eliminada.'];
+            }
+        }
+        $this->redirect('index.php?controller=admin&action=correlativas&carrera=' . urlencode($carrera));
+    }
+
+    // ============================================================
+    //  AUDITORÍA
+    // ============================================================
+
+    /**
+     * Muestra el registro de auditoría: log general de la aplicación (con filtros y
+     * paginación) más la auditoría de inscripciones generada por triggers de la base.
+     */
+    public function auditoria(): void {
+        requierePermiso('ver_auditoria');
+
+        /* Filtros recibidos por GET (todos opcionales) */
+        $filtros = [
+            'accion' => trim($_GET['accion'] ?? ''),
+            'rol'    => trim($_GET['rol']    ?? ''),
+            'desde'  => trim($_GET['desde']  ?? ''),
+            'hasta'  => trim($_GET['hasta']  ?? ''),
+            'buscar' => trim($_GET['buscar'] ?? ''),
+        ];
+
+        /* Paginación: 25 registros por página */
+        $porPagina = 25;
+        $pagina    = max(1, (int)($_GET['pagina'] ?? 1));
+        $offset    = ($pagina - 1) * $porPagina;
+
+        /* Datos para la vista */
+        $total       = $this->auditoriaModel->contarLog($filtros);
+        $totalPaginas = max(1, (int)ceil($total / $porPagina));
+        $registros   = $this->auditoriaModel->getLog($filtros, $porPagina, $offset);
+        $acciones    = $this->auditoriaModel->getAccionesDistintas();
+        $resumen     = $this->auditoriaModel->getResumenPorAccion();
+        $inscAudit   = $this->auditoriaModel->getAuditInscripcion(50);
+
+        $this->render('admin/auditoria', compact(
+            'registros', 'filtros', 'acciones', 'resumen', 'inscAudit',
+            'pagina', 'totalPaginas', 'total'
+        ));
     }
 }

@@ -3,16 +3,39 @@
 /** Modelo para consultas relacionadas con el alumno. */
 class AlumnoModel extends Model {
 
-    /** Devuelve los datos del alumno por DNI (incluye NomCarrera), o [] si no existe. */
+    /** Devuelve los datos del alumno por DNI (incluye NomCarrera y DurAnios de la carrera), o [] si no existe. */
     public function getByDNI(int $dni): array {
         $stmt = $this->db->prepare("
-            SELECT a.*, ca.NomCarrera
+            SELECT a.*, ca.NomCarrera, ca.DurAnios
               FROM Alumno a
               LEFT JOIN Carrera ca ON ca.CodCarrera = a.CodCarrera
              WHERE a.DNI = :dni
         ");
         $stmt->execute([':dni' => $dni]);
         return $stmt->fetch() ?: [];
+    }
+
+    /**
+     * Calcula el año académico estimado del alumno según su fecha de ingreso.
+     * Ej: ingresó en 2022 y hoy es 2026 → está en 4° año.
+     * El resultado se topea con la duración de la carrera para no superar el último año.
+     * Sirve para limitar a qué materias puede inscribirse (su año o anteriores, nunca más adelante).
+     */
+    public function getAnioAcademico(array $alumno): int {
+        if (empty($alumno['FechaIngreso'])) {
+            return 1;
+        }
+        $anioIngreso = (int)date('Y', strtotime($alumno['FechaIngreso']));
+        /* +1 porque el año de ingreso ya cuenta como 1° año */
+        $anioActual  = (int)date('Y') - $anioIngreso + 1;
+        /* Nunca menos de 1° */
+        $anioActual  = max(1, $anioActual);
+        /* No superar la duración total de la carrera */
+        $durCarrera  = (int)($alumno['DurAnios'] ?? 0);
+        if ($durCarrera > 0) {
+            $anioActual = min($anioActual, $durCarrera);
+        }
+        return $anioActual;
     }
 
     /** Devuelve el progreso académico del alumno dentro de su carrera.

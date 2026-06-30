@@ -47,11 +47,19 @@
                 </select>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-3">
                 <label class="form-label fw-semibold">Año de cursada <span class="text-danger">*</span></label>
                 <select name="Anio" id="anioSelect" class="form-select" required>
                     <option value="">-- Primero seleccioná una carrera --</option>
                 </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Contenidos mínimos</label>
+                <!-- Campo opcional: descripción resumida de los temas de la materia -->
+                <textarea name="ContMinimos" class="form-control" rows="3"
+                          placeholder="Ej: Modelo relacional, SQL, normalización..."><?= htmlspecialchars($materia['ContMinimos'] ?? '') ?></textarea>
+                <div class="form-text">Opcional. Descripción breve de los temas que cubre la materia.</div>
             </div>
 
             <div class="d-flex gap-2">

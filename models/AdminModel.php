@@ -72,17 +72,18 @@ class AdminModel extends Model {
         return $stmt->fetch() ?: [];
     }
 
-    /** Inserta o actualiza una materia según $isNew. */
+    /** Inserta o actualiza una materia según $isNew. Incluye el campo ContMinimos. */
     public function saveMateria(array $d, bool $isNew): void {
         if ($isNew) {
             $stmt = $this->db->prepare("
-                INSERT INTO Materia (CodMateria, NomMateria, CodCarrera, Anio)
-                VALUES (:cod, :nom, :carrera, :anio)
+                INSERT INTO Materia (CodMateria, NomMateria, CodCarrera, Anio, ContMinimos)
+                VALUES (:cod, :nom, :carrera, :anio, :cont)
             ");
         } else {
             $stmt = $this->db->prepare("
-                UPDATE Materia SET NomMateria = :nom, CodCarrera = :carrera, Anio = :anio
-                WHERE CodMateria = :cod
+                UPDATE Materia
+                   SET NomMateria = :nom, CodCarrera = :carrera, Anio = :anio, ContMinimos = :cont
+                 WHERE CodMateria = :cod
             ");
         }
         $stmt->execute([
@@ -90,6 +91,8 @@ class AdminModel extends Model {
             ':nom'     => $d['NomMateria'],
             ':carrera' => $d['CodCarrera'] ?: null,
             ':anio'    => $d['Anio'] ?: null,
+            /* ContMinimos puede quedar vacío; se guarda null si no se ingresó nada */
+            ':cont'    => $d['ContMinimos'] ?: null,
         ]);
     }
 
@@ -103,10 +106,11 @@ class AdminModel extends Model {
     //  CURSOS
     // ============================================================
 
-    /** Devuelve todos los cursos con nombre de materia, docente, aula y horarios calculados. */
+    /** Devuelve todos los cursos con nombre de materia, carrera, docente, aula y horarios calculados. */
     public function getCursos(): array {
         $stmt = $this->db->prepare("
-            SELECT c.*, m.NomMateria, m.CodCarrera, au.Numero AS Aula, au.Edificio,
+            SELECT c.*, m.NomMateria, m.CodCarrera, ca.NomCarrera,
+                   au.Numero AS Aula, au.Edificio,
                    d.Nombre AS DocNombre, d.Apellido AS DocApellido,
                    (SELECT GROUP_CONCAT(
                                CONCAT(ch.Dia, ' ', TIME_FORMAT(ch.HoraInicio,'%H:%i'),
@@ -117,9 +121,10 @@ class AdminModel extends Model {
                    (SELECT ROUND(SUM(TIMESTAMPDIFF(MINUTE, ch.HoraInicio, ch.HoraFin) / 60.0) * 32)
                     FROM CursoHorario ch WHERE ch.IDCurso = c.IDCurso) AS CargaHoraria
               FROM Curso c
-              JOIN Materia m ON m.CodMateria = c.CodMateria
-              JOIN Aula au   ON au.IDAula     = c.IDAula
-              JOIN Docente d ON d.Legajo       = c.Legajo
+              JOIN Materia m           ON m.CodMateria  = c.CodMateria
+              LEFT JOIN Carrera ca     ON ca.CodCarrera = m.CodCarrera
+              JOIN Aula au             ON au.IDAula      = c.IDAula
+              JOIN Docente d           ON d.Legajo        = c.Legajo
              ORDER BY c.AnioLectivo DESC, m.NomMateria
         ");
         $stmt->execute();
@@ -442,15 +447,17 @@ class AdminModel extends Model {
         return $stmt->fetchAll();
     }
 
-    /** Devuelve las materias activas para el select del formulario de curso. */
-    public function getMateriasList(): array {
+    /** Devuelve las materias activas para selects. Con $codCarrera, solo las de esa carrera. */
+    public function getMateriasList(?string $codCarrera = null): array {
+        $where  = $codCarrera ? "AND m.CodCarrera = :carrera" : "";
+        $params = $codCarrera ? [':carrera' => $codCarrera] : [];
         $stmt = $this->db->prepare("
-            SELECT m.CodMateria, m.NomMateria, m.CodCarrera
+            SELECT m.CodMateria, m.NomMateria, m.CodCarrera, m.Anio
               FROM Materia m
-             WHERE m.Activo = 1
+             WHERE m.Activo = 1 {$where}
              ORDER BY m.CodCarrera, m.Anio, m.NomMateria
         ");
-        $stmt->execute();
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -461,14 +468,117 @@ class AdminModel extends Model {
         return $stmt->fetchAll();
     }
 
-    /** Devuelve conteos de entidades para el dashboard del admin. */
+    // ============================================================
+    //  CORRELATIVAS
+    // ============================================================
+
+    /**
+     * Devuelve todas las correlativas con el nombre de la materia principal
+     * y el nombre de la materia correlativa requerida.
+     */
+    public function getCorrelativasList(?string $codCarrera = null): array {
+        /* Filtro opcional por carrera (las correlativas siempre son dentro de una carrera) */
+        $where  = $codCarrera ? "WHERE m1.CodCarrera = :carrera" : "";
+        $params = $codCarrera ? [':carrera' => $codCarrera] : [];
+
+        $stmt = $this->db->prepare("
+            SELECT co.CodMateria, m1.NomMateria,
+                   co.CodCorrelativa, m2.NomMateria AS NomCorrelativa,
+                   m1.CodCarrera, m1.Anio
+              FROM Correlativa co
+              JOIN Materia m1 ON m1.CodMateria = co.CodMateria
+              JOIN Materia m2 ON m2.CodMateria = co.CodCorrelativa
+              {$where}
+             ORDER BY m1.CodCarrera, m1.Anio, m1.NomMateria, m2.NomMateria
+        ");
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /** Devuelve true si las dos materias pertenecen a la misma carrera (y no nula). */
+    public function mismaCarrera(string $cod1, string $cod2): bool {
+        $stmt = $this->db->prepare("
+            SELECT m1.CodCarrera = m2.CodCarrera AND m1.CodCarrera IS NOT NULL
+              FROM Materia m1, Materia m2
+             WHERE m1.CodMateria = :c1 AND m2.CodMateria = :c2
+        ");
+        $stmt->execute([':c1' => $cod1, ':c2' => $cod2]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    /**
+     * Agrega una correlativa nueva entre dos materias.
+     * Ignora el INSERT si ya existe el par (evita duplicados sin lanzar error).
+     */
+    public function agregarCorrelativa(string $codMateria, string $codCorrelativa): void {
+        $stmt = $this->db->prepare("
+            INSERT IGNORE INTO Correlativa (CodMateria, CodCorrelativa)
+            VALUES (:cod, :corr)
+        ");
+        $stmt->execute([':cod' => $codMateria, ':corr' => $codCorrelativa]);
+    }
+
+    /** Elimina una correlativa específica entre dos materias. */
+    public function eliminarCorrelativa(string $codMateria, string $codCorrelativa): void {
+        $stmt = $this->db->prepare("
+            DELETE FROM Correlativa
+             WHERE CodMateria = :cod AND CodCorrelativa = :corr
+        ");
+        $stmt->execute([':cod' => $codMateria, ':corr' => $codCorrelativa]);
+    }
+
+    // ============================================================
+    //  RESUMEN DASHBOARD
+    // ============================================================
+
+    /**
+     * Devuelve conteos e indicadores para el dashboard del admin.
+     * Además de los totales, incluye estadísticas calculadas en la base
+     * (promedios, distribución de inscripciones, alumnos por carrera y
+     * actividad reciente de auditoría) para alimentar los gráficos CSS.
+     */
     public function getResumen(): array {
-        return [
-            'carreras' => $this->db->query("SELECT COUNT(*) FROM Carrera")->fetchColumn(),
-            'materias' => $this->db->query("SELECT COUNT(*) FROM Materia  WHERE Activo = 1")->fetchColumn(),
-            'cursos'   => $this->db->query("SELECT COUNT(*) FROM Curso    WHERE Activo = 1")->fetchColumn(),
-            'alumnos'  => $this->db->query("SELECT COUNT(*) FROM Alumno   WHERE Activo = 1")->fetchColumn(),
-            'docentes' => $this->db->query("SELECT COUNT(*) FROM Docente  WHERE Activo = 1")->fetchColumn(),
+        $r = [
+            /* Totales básicos (tarjetas superiores) */
+            'carreras' => (int)$this->db->query("SELECT COUNT(*) FROM Carrera")->fetchColumn(),
+            'materias' => (int)$this->db->query("SELECT COUNT(*) FROM Materia  WHERE Activo = 1")->fetchColumn(),
+            'cursos'   => (int)$this->db->query("SELECT COUNT(*) FROM Curso    WHERE Activo = 1")->fetchColumn(),
+            'alumnos'  => (int)$this->db->query("SELECT COUNT(*) FROM Alumno   WHERE Activo = 1")->fetchColumn(),
+            'docentes' => (int)$this->db->query("SELECT COUNT(*) FROM Docente  WHERE Activo = 1")->fetchColumn(),
         ];
+
+        /* Indicadores académicos */
+        $r['cursos_inactivos']    = (int)$this->db->query("SELECT COUNT(*) FROM Curso WHERE Activo = 0")->fetchColumn();
+        $r['titulos']             = (int)$this->db->query("SELECT COUNT(*) FROM TituloObtenido")->fetchColumn();
+        $r['inscripciones_total'] = (int)$this->db->query("SELECT COUNT(*) FROM Inscripcion")->fetchColumn();
+        /* Promedio general de todas las notas cargadas (0 si no hay) */
+        $r['promedio_general']    = round((float)$this->db->query("SELECT AVG(Nota) FROM Evaluacion")->fetchColumn(), 2);
+        /* Porcentaje de asistencia global (presentes sobre el total de registros) */
+        $r['asistencia_global']   = round((float)$this->db->query("SELECT AVG(Presente) * 100 FROM Asistencia")->fetchColumn(), 1);
+
+        /* Distribución de inscripciones por estado (para la barra apilada) */
+        $r['por_estado'] = [];
+        foreach ($this->db->query("SELECT Estado, COUNT(*) AS Cant FROM Inscripcion GROUP BY Estado") as $row) {
+            $r['por_estado'][$row['Estado']] = (int)$row['Cant'];
+        }
+
+        /* Cantidad de alumnos activos por carrera (para las barras horizontales) */
+        $r['por_carrera'] = $this->db->query("
+            SELECT c.NomCarrera, c.CodCarrera, COUNT(a.DNI) AS Total
+              FROM Carrera c
+              LEFT JOIN Alumno a ON a.CodCarrera = c.CodCarrera AND a.Activo = 1
+             GROUP BY c.CodCarrera, c.NomCarrera
+             ORDER BY Total DESC
+        ")->fetchAll();
+
+        /* Últimos movimientos del log de auditoría (actividad reciente) */
+        $r['actividad'] = $this->db->query("
+            SELECT Fecha, Email, Rol, Accion, Entidad, Detalle
+              FROM Auditoria
+             ORDER BY IDAuditoria DESC
+             LIMIT 8
+        ")->fetchAll();
+
+        return $r;
     }
 }

@@ -7,6 +7,7 @@ class DocenteController extends Controller {
     private CursoModel      $cursoModel;
     private EvaluacionModel $evaluacionModel;
     private AsistenciaModel $asistenciaModel;
+    private TituloModel     $tituloModel;
 
     /** Instancia todos los modelos necesarios. */
     public function __construct() {
@@ -14,6 +15,18 @@ class DocenteController extends Controller {
         $this->cursoModel      = new CursoModel();
         $this->evaluacionModel = new EvaluacionModel();
         $this->asistenciaModel = new AsistenciaModel();
+        $this->tituloModel     = new TituloModel();
+    }
+
+    /**
+     * Intenta emitir el título de un alumno si completó la carrera.
+     * Se llama tras aprobar materias. Si lo emite, lo deja registrado en auditoría.
+     */
+    private function intentarEmitirTitulo(int $dni): void {
+        if ($dni > 0 && $this->tituloModel->emitirTituloSiCompleto($dni)) {
+            Auditoria::registrar(Auditoria::ALTA, 'Titulo',
+                "Título emitido automáticamente al completar la carrera (alumno DNI {$dni})");
+        }
     }
 
     /** Muestra la pantalla principal del docente con su resumen. */
@@ -57,7 +70,17 @@ class DocenteController extends Controller {
         requierePermiso('ver_alumnos_curso');
 
         $idCurso = (int)($_GET['idCurso'] ?? $_POST['IDCurso'] ?? 0);
+        $legajo  = (int)$_SESSION['usuario']['Legajo'];
+
         if (!$idCurso) {
+            $this->redirect('index.php?controller=docente&action=misCursos');
+        }
+
+        /* Verificación de propiedad: el curso debe pertenecer al docente logueado.
+         * Evita que un docente cierre el cursado de un colega manipulando el parámetro idCurso. */
+        $curso = $this->cursoModel->getCursoById($idCurso);
+        if (empty($curso) || (int)$curso['Legajo'] !== $legajo) {
+            $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'No tenés permiso para cerrar ese curso.'];
             $this->redirect('index.php?controller=docente&action=misCursos');
         }
 
@@ -74,6 +97,16 @@ class DocenteController extends Controller {
                 );
 
                 $this->cursoModel->actualizarEstados($estadosFiltrados);
+                /* Auditoría: cierre de cursada (cambio masivo de estados de inscripción) */
+                Auditoria::registrar(Auditoria::MODIFICACION, 'Inscripcion',
+                    "Cerró la cursada del curso #{$idCurso} (" . count($estadosFiltrados) . " alumnos)");
+                /* Tras cerrar, algún alumno pudo aprobar su última materia → intentamos emitir su título.
+                 * Solo revisamos los que quedaron en 'Aprobado'. */
+                foreach ($estadosFiltrados as $idInsc => $estado) {
+                    if ($estado === 'Aprobado') {
+                        $this->intentarEmitirTitulo($this->cursoModel->getDniDeInscripcion((int)$idInsc));
+                    }
+                }
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Estados actualizados correctamente.'];
                 $this->redirect("index.php?controller=docente&action=alumnosCurso&idCurso={$idCurso}");
             } catch (PDOException $e) {
@@ -95,6 +128,11 @@ class DocenteController extends Controller {
         $idCurso       = (int)($_POST['IDCurso'] ?? 0);
         if ($idInscripcion) {
             $this->cursoModel->registrarFinal($idInscripcion);
+            /* Auditoría: registro de final (aprobación) */
+            Auditoria::registrar(Auditoria::MODIFICACION, 'Inscripcion',
+                "Registró final aprobado en inscripción #{$idInscripcion}");
+            /* Si con esta aprobación el alumno completó la carrera, se le emite el título solo */
+            $this->intentarEmitirTitulo($this->cursoModel->getDniDeInscripcion($idInscripcion));
             $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Final registrado. Alumno aprobado.'];
         }
         $this->redirect("index.php?controller=docente&action=alumnosCurso&idCurso={$idCurso}");
@@ -121,6 +159,9 @@ class DocenteController extends Controller {
                         'Fecha'     => $_POST['Fecha'],
                         'Instancia' => (int)($_POST['Instancia'] ?? 1),
                     ]);
+                    /* Auditoría: edición de una nota existente */
+                    Auditoria::registrar(Auditoria::MODIFICACION, 'Evaluacion',
+                        "Editó la evaluación #{$idEval} (nota: {$nota}) del alumno DNI {$dni}");
                     $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Nota actualizada correctamente.'];
                     $this->redirect("index.php?controller=docente&action=editarNota&idCurso={$idCurso}&dni={$dni}");
                 } catch (PDOException $e) {
@@ -134,7 +175,13 @@ class DocenteController extends Controller {
             $this->redirect('index.php?controller=docente&action=misCursos');
         }
 
-        $curso  = $this->cursoModel->getCursoById($idCurso);
+        $curso = $this->cursoModel->getCursoById($idCurso);
+        /* Verifica que el curso pertenece al docente antes de mostrar notas ajenas */
+        if (empty($curso) || (int)$curso['Legajo'] !== (int)$_SESSION['usuario']['Legajo']) {
+            $_SESSION['mensaje'] = ['tipo' => 'danger', 'texto' => 'No tenés permiso para ver ese curso.'];
+            $this->redirect('index.php?controller=docente&action=misCursos');
+        }
+
         $notas  = $this->evaluacionModel->getEvaluacionesByCursoAlumno($idCurso, $dni);
         $alumno = !empty($notas)
             ? ['Nombre' => $notas[0]['Nombre'], 'Apellido' => $notas[0]['Apellido'], 'DNI' => $dni]
@@ -169,6 +216,10 @@ class DocenteController extends Controller {
                         'Fecha'     => $_POST['Fecha'],
                         'Instancia' => (int)($_POST['Instancia'] ?? 1),
                     ]);
+
+                    /* Auditoría: carga de una nueva evaluación */
+                    Auditoria::registrar(Auditoria::ALTA, 'Evaluacion',
+                        "Cargó {$_POST['Tipo']} (nota: {$nota}) al alumno DNI {$_POST['DNI']} en curso #{$idCurso}");
 
                     // Guarda el mensaje de éxito en sesión antes de redirigir
                     $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Nota guardada correctamente.'];
@@ -215,6 +266,10 @@ class DocenteController extends Controller {
                 }
 
                 $this->asistenciaModel->guardarAsistencia($registros);
+
+                /* Auditoría: carga de asistencia de una clase */
+                Auditoria::registrar(Auditoria::ALTA, 'Asistencia',
+                    "Cargó asistencia del curso #{$idCurso} para el {$fecha} (" . count($registros) . " alumnos)");
 
                 // Guarda el mensaje de éxito en sesión antes de redirigir
                 $_SESSION['mensaje'] = ['tipo' => 'success', 'texto' => 'Asistencia guardada correctamente.'];

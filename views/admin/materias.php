@@ -26,7 +26,7 @@ ksort($carreras);
 <form method="get" action="index.php" class="d-flex gap-2 mb-3">
     <input type="hidden" name="controller" value="admin">
     <input type="hidden" name="action" value="materias">
-    <select name="f_carrera" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+    <select name="f_carrera" class="form-select form-select-sm" style="width:auto">
         <option value="">Todas las carreras</option>
         <?php foreach ($carreras as $cod => $nom): ?>
         <option value="<?= htmlspecialchars($cod) ?>" <?= $fCarrera === $cod ? 'selected' : '' ?>>
@@ -34,12 +34,13 @@ ksort($carreras);
         </option>
         <?php endforeach; ?>
     </select>
-    <select name="f_anio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+    <select name="f_anio" class="form-select form-select-sm" style="width:auto">
         <option value="">Todos los años</option>
         <?php for ($a = 1; $a <= 5; $a++): ?>
         <option value="<?= $a ?>" <?= $fAnio === (string)$a ? 'selected' : '' ?>><?= $a ?>°</option>
         <?php endfor; ?>
     </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
     <?php if ($fCarrera || $fAnio): ?>
     <a href="index.php?controller=admin&action=materias" class="btn btn-outline-secondary btn-sm">Limpiar</a>
     <?php endif; ?>

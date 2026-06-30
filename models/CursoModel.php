@@ -7,7 +7,7 @@ class CursoModel extends Model {
     public function getCursosByAlumno(int $dni): array {
         $stmt = $this->db->prepare("
             SELECT c.IDCurso, c.AnioLectivo,
-                   m.NomMateria, m.CodMateria,
+                   m.NomMateria, m.CodMateria, m.Anio AS AnioMateria,
                    d.Nombre AS DocNombre, d.Apellido AS DocApellido,
                    au.Numero AS Aula, au.Edificio,
                    i.Estado AS EstadoInscripcion, i.IDInscripcion,
@@ -16,7 +16,18 @@ class CursoModel extends Model {
                                       '–', TIME_FORMAT(ch.HoraFin,'%H:%i'))
                                ORDER BY FIELD(ch.Dia,'Lunes','Martes','Miércoles','Jueves','Viernes','Sábado')
                                SEPARATOR ' | ')
-                    FROM CursoHorario ch WHERE ch.IDCurso = c.IDCurso) AS Horarios
+                    FROM CursoHorario ch WHERE ch.IDCurso = c.IDCurso) AS Horarios,
+                   /* Marca si esta inscripción quedó SUPERADA: existe otra de la misma materia,
+                    * en un año lectivo posterior, en un estado mejor (la recursó después).
+                    * Sirve para aclarar en la vista por qué se ve un 'Libre' viejo de algo ya aprobado. */
+                   EXISTS (
+                       SELECT 1 FROM Inscripcion i2
+                         JOIN Curso c2 ON c2.IDCurso = i2.IDCurso
+                        WHERE i2.DNI = i.DNI
+                          AND c2.CodMateria   = c.CodMateria
+                          AND c2.AnioLectivo  > c.AnioLectivo
+                          AND i2.Estado IN ('Aprobado', 'Activo', 'Regular')
+                   ) AS Superada
               FROM Curso c
               JOIN Inscripcion i ON i.IDCurso    = c.IDCurso
               JOIN Materia m     ON m.CodMateria  = c.CodMateria
@@ -124,6 +135,13 @@ class CursoModel extends Model {
         }
     }
 
+    /** Devuelve el DNI del alumno dueño de una inscripción, o 0 si no existe. */
+    public function getDniDeInscripcion(int $idInscripcion): int {
+        $stmt = $this->db->prepare("SELECT DNI FROM Inscripcion WHERE IDInscripcion = :id");
+        $stmt->execute([':id' => $idInscripcion]);
+        return (int)($stmt->fetchColumn() ?: 0);
+    }
+
     /** Registra el final de un alumno cambiando su estado de Regular a Aprobado. */
     public function registrarFinal(int $idInscripcion): void {
         $stmt = $this->db->prepare(
@@ -132,30 +150,78 @@ class CursoModel extends Model {
         $stmt->execute([':id' => $idInscripcion]);
     }
 
-    /** Devuelve los cursos activos en los que el alumno no está inscripto. */
-    public function getCursosDisponibles(int $dni): array {
+    /**
+     * Devuelve los cursos activos disponibles para inscripción.
+     * Filtra por carrera del alumno, por año académico (su año o anteriores, nunca más adelante)
+     * y excluye las materias que ya aprobó, está cursando (Activo) o tiene regulares.
+     * Las materias en estado Libre (desaprobadas) SÍ aparecen, para poder recursarlas.
+     * Incluye la columna CorrelativasPendientes para mostrar advertencias en la vista
+     * sin necesitar consultas adicionales por cada fila.
+     *
+     * @param int    $anioMax  Año académico tope: solo materias con Anio <= este valor.
+     */
+    public function getCursosDisponibles(int $dni, string $codCarrera, int $anioMax): array {
         $stmt = $this->db->prepare("
             SELECT c.IDCurso, c.AnioLectivo,
-                   m.CodMateria, m.NomMateria,
+                   m.CodMateria, m.NomMateria, m.Anio AS AnioMateria,
                    d.Nombre AS DocNombre, d.Apellido AS DocApellido,
                    au.Numero AS Aula, au.Edificio,
+                   /* Horarios concatenados para mostrar en una celda */
                    (SELECT GROUP_CONCAT(
                                CONCAT(ch.Dia, ' ', TIME_FORMAT(ch.HoraInicio,'%H:%i'),
                                       '–', TIME_FORMAT(ch.HoraFin,'%H:%i'))
                                ORDER BY FIELD(ch.Dia,'Lunes','Martes','Miércoles','Jueves','Viernes','Sábado')
                                SEPARATOR ' | ')
-                    FROM CursoHorario ch WHERE ch.IDCurso = c.IDCurso) AS Horarios
+                    FROM CursoHorario ch WHERE ch.IDCurso = c.IDCurso) AS Horarios,
+                   /* Cuenta cuántas correlativas de esta materia el alumno todavía no aprobó */
+                   (SELECT COUNT(*)
+                      FROM Correlativa co
+                     WHERE co.CodMateria = m.CodMateria
+                       AND NOT EXISTS (
+                           SELECT 1 FROM Inscripcion i2
+                             JOIN Curso c2 ON c2.IDCurso = i2.IDCurso
+                            WHERE i2.DNI = :dni2
+                              AND c2.CodMateria = co.CodCorrelativa
+                              AND i2.Estado = 'Aprobado'
+                       )
+                   ) AS CorrelativasPendientes,
+                   /* Marca si el alumno ya tiene esta materia en estado Libre (la está por recursar) */
+                   EXISTS (
+                       SELECT 1 FROM Inscripcion i4
+                         JOIN Curso c4 ON c4.IDCurso = i4.IDCurso
+                        WHERE i4.DNI = :dni3
+                          AND c4.CodMateria = m.CodMateria
+                          AND i4.Estado = 'Libre'
+                   ) AS EsRecursada
               FROM Curso c
               JOIN Materia m ON m.CodMateria = c.CodMateria
               JOIN Docente d ON d.Legajo      = c.Legajo
               JOIN Aula au   ON au.IDAula      = c.IDAula
              WHERE c.Activo = 1
-               AND c.IDCurso NOT IN (
-                   SELECT IDCurso FROM Inscripcion WHERE DNI = :dni AND Estado != 'Baja'
+               /* Solo materias de la carrera del alumno */
+               AND m.CodCarrera = :carrera
+               /* Solo materias de su año académico o anteriores (recursar libres), nunca más adelantadas */
+               AND m.Anio <= :anioMax
+               /* Excluye las materias que el alumno ya aprobó, está cursando o tiene como regular.
+                * La exclusión es por MATERIA (no por curso): así una materia ya aprobada en un curso
+                * de un año anterior no reaparece en el curso nuevo. Las materias en estado Libre no
+                * se excluyen, para permitir recursarlas. */
+               AND m.CodMateria NOT IN (
+                   SELECT c2.CodMateria
+                     FROM Inscripcion i3
+                     JOIN Curso c2 ON c2.IDCurso = i3.IDCurso
+                    WHERE i3.DNI = :dni
+                      AND i3.Estado IN ('Aprobado', 'Activo', 'Regular')
                )
-             ORDER BY m.NomMateria
+             ORDER BY m.Anio, m.NomMateria
         ");
-        $stmt->execute([':dni' => $dni]);
+        $stmt->execute([
+            ':dni'     => $dni,
+            ':dni2'    => $dni,
+            ':dni3'    => $dni,
+            ':carrera' => $codCarrera,
+            ':anioMax' => $anioMax,
+        ]);
         return $stmt->fetchAll();
     }
 
@@ -178,6 +244,25 @@ class CursoModel extends Model {
         return $stmt->fetchAll();
     }
 
+    /**
+     * Indica si el alumno ya aprobó, está cursando (Activo) o tiene como regular
+     * la materia indicada. Sirve para impedir que se reinscriba a algo que no corresponde.
+     * No considera el estado Libre (ese SÍ se puede recursar).
+     */
+    public function yaTieneMateria(int $dni, string $codMateria): bool {
+        $stmt = $this->db->prepare("
+            SELECT 1
+              FROM Inscripcion i
+              JOIN Curso c ON c.IDCurso = i.IDCurso
+             WHERE i.DNI = :dni
+               AND c.CodMateria = :cod
+               AND i.Estado IN ('Aprobado', 'Activo', 'Regular')
+             LIMIT 1
+        ");
+        $stmt->execute([':dni' => $dni, ':cod' => $codMateria]);
+        return (bool)$stmt->fetch();
+    }
+
     /** Inscribe al alumno en un curso. */
     public function inscribir(int $dni, int $idCurso): void {
         $stmt = $this->db->prepare("
@@ -187,10 +272,30 @@ class CursoModel extends Model {
         $stmt->execute([':dni' => $dni, ':idcurso' => $idCurso]);
     }
 
-    /** Devuelve los datos completos de un curso por su ID, o [] si no existe. */
+    /**
+     * Da de baja al alumno de un curso.
+     * Solo aplica si la inscripción está en estado 'Activo' y pertenece al DNI indicado,
+     * lo que evita que un alumno pueda dar de baja una inscripción ajena manipulando el POST.
+     */
+    public function darDeBaja(int $idInscripcion, int $dni): bool {
+        $stmt = $this->db->prepare("
+            UPDATE Inscripcion
+               SET Estado = 'Baja'
+             WHERE IDInscripcion = :id
+               AND DNI           = :dni
+               AND Estado        = 'Activo'
+        ");
+        $stmt->execute([':id' => $idInscripcion, ':dni' => $dni]);
+        /* Devuelve true si efectivamente se modificó una fila */
+        return $stmt->rowCount() > 0;
+    }
+
+    /** Devuelve los datos completos de un curso por su ID, o [] si no existe.
+     *  Incluye el año y la carrera de la materia para validar reglas de inscripción. */
     public function getCursoById(int $idCurso): array {
         $stmt = $this->db->prepare("
-            SELECT c.*, m.NomMateria, au.Numero AS Aula,
+            SELECT c.*, m.NomMateria, m.Anio AS AnioMateria, m.CodCarrera,
+                   au.Numero AS Aula,
                    d.Nombre AS DocNombre, d.Apellido AS DocApellido
               FROM Curso c
               JOIN Materia m ON m.CodMateria = c.CodMateria

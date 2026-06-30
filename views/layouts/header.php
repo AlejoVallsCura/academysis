@@ -64,11 +64,13 @@
     <div class="nav-section">Admin</div>
     <a href="index.php?controller=admin&action=dashboard"  class="nav-link d-flex align-items-center gap-2"><i class="bi bi-speedometer2"></i> Dashboard</a>
     <a href="index.php?controller=admin&action=carreras"   class="nav-link d-flex align-items-center gap-2"><i class="bi bi-mortarboard"></i> Carreras</a>
-    <a href="index.php?controller=admin&action=materias"   class="nav-link d-flex align-items-center gap-2"><i class="bi bi-book"></i> Materias</a>
-    <a href="index.php?controller=admin&action=cursos"     class="nav-link d-flex align-items-center gap-2"><i class="bi bi-calendar3"></i> Cursos</a>
+    <a href="index.php?controller=admin&action=materias"      class="nav-link d-flex align-items-center gap-2"><i class="bi bi-book"></i> Materias</a>
+    <a href="index.php?controller=admin&action=correlativas" class="nav-link d-flex align-items-center gap-2"><i class="bi bi-diagram-3"></i> Correlativas</a>
+    <a href="index.php?controller=admin&action=cursos"       class="nav-link d-flex align-items-center gap-2"><i class="bi bi-calendar3"></i> Cursos</a>
     <a href="index.php?controller=admin&action=alumnos"    class="nav-link d-flex align-items-center gap-2"><i class="bi bi-person-badge"></i> Alumnos</a>
     <a href="index.php?controller=admin&action=docentes"   class="nav-link d-flex align-items-center gap-2"><i class="bi bi-person-workspace"></i> Docentes</a>
     <a href="index.php?controller=admin&action=admins"     class="nav-link d-flex align-items-center gap-2"><i class="bi bi-shield-lock"></i> Administradores</a>
+    <a href="index.php?controller=admin&action=auditoria"  class="nav-link d-flex align-items-center gap-2"><i class="bi bi-clipboard-check"></i> Auditoría</a>
 <?php elseif (esDocente()): ?>
     <div class="nav-section">Docente</div>
     <a href="index.php?controller=docente&action=dashboard"  class="nav-link d-flex align-items-center gap-2"><i class="bi bi-speedometer2"></i> Dashboard</a>

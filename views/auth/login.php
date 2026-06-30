@@ -162,14 +162,30 @@
             <a href="mailto:secretaria@uch.edu.ar" style="color:#65715A; font-weight:600;">secretaria@uch.edu.ar</a>
         </p>
 
+<?php if (defined('DEV_MODE') && DEV_MODE): ?>
         <hr style="border-color:#ECF0E8; margin:1rem 0">
 
+        <!-- Card recordatorio de credenciales para la exposición.
+             Solo se muestra con DEV_MODE activo (config/auth.php); en producción no aparece. -->
         <div class="test-users">
-            <strong>Usuarios de prueba</strong>
-            <span>Alumno: lucia.fernandez@mail.com / alumno123</span>
-            <span>Docente: c.medina@academisys.edu.ar / docente123</span>
-            <span>Admin: admin@academisys.edu.ar / Admin1234</span>
+            <strong><i class="bi bi-key me-1"></i>Usuarios de prueba</strong>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge bg-secondary" style="width:62px">Admin</span>
+                <code>admin@academisys.edu.ar</code> / <code>Admin1234</code>
+            </div>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge bg-secondary" style="width:62px">Docente</span>
+                <code>c.medina@academisys.edu.ar</code> / <code>docente123</code>
+            </div>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge bg-secondary" style="width:62px">Alumno</span>
+                <code>isabella.castro000@mail.com</code> / <code>alumno123</code>
+            </div>
+            <div class="mt-1" style="font-size:.72rem; color:#A3B090;">
+                Todos los alumnos usan la contraseña <code>alumno123</code>.
+            </div>
         </div>
+<?php endif; ?>
     </div>
 </div>
 

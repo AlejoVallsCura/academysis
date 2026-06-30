@@ -25,6 +25,7 @@ DELIMITER $$
 --
 -- Procedimientos
 --
+DROP PROCEDURE IF EXISTS `RegistrarNota`$$
 CREATE DEFINER=`root`@`localhost` PROCEDURE `RegistrarNota` (IN `p_dni` INT, IN `p_id_curso` INT, IN `p_tipo` VARCHAR(30), IN `p_nota` DECIMAL(4,2), IN `p_fecha` DATE, IN `p_instancia` INT)   BEGIN
     DECLARE v_id_inscripcion INT DEFAULT NULL;
 
@@ -1724,6 +1725,25 @@ INSERT INTO `asistencia` (`IDInscripcion`, `Fecha`, `Presente`, `Observaciones`)
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `auditoria`
+-- Log general de acciones de la aplicación (quién hizo qué y cuándo).
+--
+
+CREATE TABLE `auditoria` (
+  `IDAuditoria` int(11) NOT NULL,
+  `Fecha` datetime NOT NULL DEFAULT current_timestamp(),
+  `IDUsuario` int(11) DEFAULT NULL,
+  `Email` varchar(100) DEFAULT NULL,
+  `Rol` varchar(30) DEFAULT NULL,
+  `Accion` varchar(20) NOT NULL,
+  `Entidad` varchar(50) DEFAULT NULL,
+  `Detalle` varchar(255) DEFAULT NULL,
+  `IP` varchar(45) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `auditinscripcion`
 --
 
@@ -2004,7 +2024,7 @@ INSERT INTO `carrera` (`CodCarrera`, `NomCarrera`, `DurAnios`) VALUES
 CREATE TABLE `correlativa` (
   `CodMateria` varchar(10) NOT NULL,
   `CodCorrelativa` varchar(10) NOT NULL
-) ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `correlativa`
@@ -2017,11 +2037,60 @@ INSERT INTO `correlativa` (`CodMateria`, `CodCorrelativa`) VALUES
 ('BDD001', 'PRG001'),
 ('BDD002', 'BDD001'),
 ('BDD002', 'PRG002'),
-('GPR001', 'ANA001'),
+('CP-201', 'CP-101'),
+('CP-202', 'CP-102'),
+('CP-301', 'CP-201'),
+('CP-303', 'CP-301'),
+('CP-401', 'CP-302'),
+('CP-402', 'CP-303'),
+('CP-503', 'CP-402'),
+('ISI-201', 'ISI-101'),
+('ISI-203', 'ISI-103'),
+('ISI-204', 'ISI-103'),
+('ISI-301', 'ISI-204'),
+('ISI-303', 'ISI-203'),
+('ISI-304', 'ISI-203'),
+('ISI-305', 'ISI-203'),
+('ISI-401', 'ISI-202'),
+('ISI-401', 'ISI-203'),
+('ISI-404', 'ISI-303'),
+('ISI-405', 'ISI-205'),
+('ISI-405', 'ISI-302'),
+('ISI-501', 'ISI-404'),
+('ISI-504', 'ISI-403'),
+('ISI-504', 'ISI-404'),
+('LAD-201', 'LAD-101'),
+('LAD-202', 'LAD-102'),
+('LAD-301', 'LAD-104'),
+('LAD-303', 'LAD-202'),
+('LAD-401', 'LAD-104'),
+('LAD-402', 'LAD-201'),
+('LAD-404', 'LAD-302'),
+('LAD-404', 'LAD-401'),
+('LIS-201', 'LIS-101'),
+('LIS-203', 'LIS-103'),
+('LIS-205', 'LIS-103'),
+('LIS-301', 'LIS-203'),
+('LIS-303', 'LIS-205'),
+('LIS-305', 'LIS-203'),
+('LIS-401', 'LIS-202'),
+('LIS-404', 'LIS-204'),
+('LIS-404', 'LIS-302'),
+('LIS-501', 'LIS-301'),
+('LIS-504', 'LIS-402'),
+('LIS-504', 'LIS-501'),
 ('MAT002', 'MAT001'),
 ('PRG002', 'PRG001'),
-('RED001', 'SIS001'),
-('SIS001', 'PRG001');
+('SIS001', 'PRG001'),
+('TUS-201', 'TUS-102'),
+('TUS-202', 'TUS-102'),
+('TUS-204', 'TUS-104'),
+('TUS-205', 'TUS-102'),
+('TUS-301', 'TUS-204'),
+('TUS-302', 'TUS-203'),
+('TUS-303', 'TUS-201'),
+('TUS-304', 'TUS-202'),
+('TUS-304', 'TUS-205');
 
 -- --------------------------------------------------------
 
@@ -2158,7 +2227,7 @@ CREATE TABLE `cursohorario` (
   `Dia` enum('Lunes','Martes','Miércoles','Jueves','Viernes','Sábado') NOT NULL,
   `HoraInicio` time NOT NULL,
   `HoraFin` time NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `cursohorario`
@@ -3229,7 +3298,8 @@ INSERT INTO `permiso` (`IDPermiso`, `Codigo`, `Descripcion`, `Modulo`) VALUES
 (16, 'gestionar_cursos', 'Crear, editar y desactivar cursos', ''),
 (17, 'gestionar_alumnos', 'Crear, editar y desactivar alumnos', ''),
 (18, 'gestionar_docentes', 'Crear, editar y desactivar docentes', ''),
-(19, 'gestionar_admins', 'Crear y gestionar administradores', '');
+(19, 'gestionar_admins', 'Crear y gestionar administradores', ''),
+(20, 'ver_auditoria', 'Ver el registro de auditoría del sistema', 'auditoria');
 
 -- --------------------------------------------------------
 
@@ -3312,7 +3382,8 @@ INSERT INTO `rol_permiso` (`IDRol`, `IDPermiso`) VALUES
 (3, 16),
 (3, 17),
 (3, 18),
-(3, 19);
+(3, 19),
+(3, 20);
 
 -- --------------------------------------------------------
 
@@ -3438,6 +3509,15 @@ ALTER TABLE `asistencia`
 --
 ALTER TABLE `auditinscripcion`
   ADD PRIMARY KEY (`IDAudit`);
+
+--
+-- Indices de la tabla `auditoria`
+--
+ALTER TABLE `auditoria`
+  ADD PRIMARY KEY (`IDAuditoria`),
+  ADD KEY `idx_aud_fecha` (`Fecha`),
+  ADD KEY `idx_aud_usuario` (`IDUsuario`),
+  ADD KEY `idx_aud_accion` (`Accion`);
 
 --
 -- Indices de la tabla `aula`
@@ -3566,6 +3646,12 @@ ALTER TABLE `usuario`
 --
 ALTER TABLE `auditinscripcion`
   MODIFY `IDAudit` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=200;
+
+--
+-- AUTO_INCREMENT de la tabla `auditoria`
+--
+ALTER TABLE `auditoria`
+  MODIFY `IDAuditoria` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `aula`

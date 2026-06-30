@@ -4,7 +4,7 @@
         <input type="hidden" name="controller" value="alumno">
         <input type="hidden" name="action" value="miAsistencia">
         <label class="text-muted small me-1 mb-0">Año:</label>
-        <select name="anio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        <select name="anio" class="form-select form-select-sm" style="width:auto">
             <option value="0" <?= $anio === 0 ? 'selected' : '' ?>>Todos</option>
             <?php foreach ($anios as $a): ?>
                 <option value="<?= (int)$a['AnioLectivo'] ?>" <?= $anio === (int)$a['AnioLectivo'] ? 'selected' : '' ?>>
@@ -12,6 +12,7 @@
                 </option>
             <?php endforeach; ?>
         </select>
+        <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
     </form>
 </div>
 
@@ -23,8 +24,9 @@
         <div class="card-header d-flex justify-content-between align-items-center bg-white">
             <span class="fw-semibold">
                 <?= htmlspecialchars($curso['NomMateria']) ?>
+                <span class="badge bg-secondary ms-1" title="Año en el plan"><?= (int)$curso['AnioMateria'] ?>°</span>
                 <small class="text-muted fw-normal ms-2">
-                    <?= htmlspecialchars($curso['AnioLectivo']) ?> — <?= htmlspecialchars($curso['Horarios'] ?? '') ?>
+                    Lectivo <?= htmlspecialchars($curso['AnioLectivo']) ?> — <?= htmlspecialchars($curso['Horarios'] ?? '') ?>
                 </small>
             </span>
             <?php $pct = (float)$curso['pct']; $color = $pct >= 75 ? 'success' : ($pct >= 50 ? 'warning' : 'danger'); ?>

@@ -21,7 +21,7 @@ class AsistenciaModel extends Model {
      *  Si $anio > 0 filtra solo ese año lectivo. */
     public function getAsistenciaByAlumno(int $dni, int $anio = 0): array {
         $stmt = $this->db->prepare("
-            SELECT m.NomMateria,
+            SELECT m.NomMateria, m.Anio AS AnioMateria,
                    c.IDCurso, c.AnioLectivo,
                    (SELECT GROUP_CONCAT(ch.Dia
                                ORDER BY FIELD(ch.Dia,'Lunes','Martes','Miércoles','Jueves','Viernes','Sábado')
@@ -44,6 +44,7 @@ class AsistenciaModel extends Model {
             if (!isset($grouped[$key])) {
                 $grouped[$key] = [
                     'NomMateria'   => $row['NomMateria'],
+                    'AnioMateria'  => $row['AnioMateria'],
                     'IDCurso'      => $row['IDCurso'],
                     'Horarios'     => $row['Horarios'],
                     'AnioLectivo'  => $row['AnioLectivo'],
